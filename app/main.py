@@ -26,6 +26,8 @@ async def ciclo_de_vida(_: FastAPI) -> AsyncIterator[None]:
     yield
 
 
+# Na importação (e não só ao iniciar): a Vercel nem sempre executa o evento de inicialização
+get_settings().validar_para_producao()
 producao = get_settings().ambiente == "prod"
 app = FastAPI(
     title="ERP Anderson Viagem e Turismo",

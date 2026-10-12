@@ -29,7 +29,8 @@ def criar_engine(url: str) -> Engine:
             cursor.close()
 
         return engine
-    return create_engine(url, pool_pre_ping=True)
+    # Na Vercel cada instância abre as suas conexões: poucas e renovadas, para não esgotar o Neon
+    return create_engine(url, pool_pre_ping=True, pool_size=2, max_overflow=3, pool_recycle=300)
 
 
 engine = criar_engine(get_settings().database_url)
