@@ -168,6 +168,8 @@ class VeiculoResumo(BaseModel):
     pago_centavos: int
     a_receber_centavos: int
     contato: ContatoMini | None
+    fechada: bool = False
+    fechada_em: datetime | None = None
 
 
 # ---------------------------------------------------------------- reservas e pagamentos
@@ -398,3 +400,35 @@ class LinkEntrada(BaseModel):
 
 class LinkPublico(LinkEntrada):
     id: int
+
+
+# ---------------------------------------------------------------- van fechada e lista de presença
+class PontoEntrada(BaseModel):
+    nome: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=60)]
+
+
+class PresencaEntrada(BaseModel):
+    presente: bool
+
+
+class PontoPublico(BaseModel):
+    id: int
+    nome: str
+    ordem: int
+    presentes: int
+    total: int
+
+
+class PassageiroDaLista(ReservaPublica):
+    """Passageiro confirmado da van fechada, com os pontos em que já foi marcado."""
+
+    presente_em: list[int]
+
+
+class ListaDaViagem(BaseModel):
+    veiculo: VeiculoResumo
+    fechada_em: datetime
+    fechada_por: str
+    pontos: list[PontoPublico]
+    passageiros: list[PassageiroDaLista]
+    fora_da_lista: int

@@ -30,11 +30,13 @@ ERP (este projeto) ─────┘      mesmas rotas /events e /linktree
 | **Eventos e vans** | **Criar, editar, publicar, tirar do site e apagar** eventos (o painel admin) e, dentro de cada um, cadastrar vans/ônibus com a quantidade de assentos |
 | **Linktree do site** | Links dos grupos de WhatsApp: criar, editar, esconder e apagar |
 | **Van** | Mapa de assentos, passageiros, **lista de espera**, pagamentos (parcial ou completo, com data), transferência entre vans |
+| **Van fechada** | Botão **Fechar van**: a lista trava e vira lista de presença, com um check por ponto (entrada na van, 1ª parada, 2ª parada, volta). Dá para renomear, acrescentar ou apagar pontos e **reabrir** a van (os checks ficam guardados) |
 | **Passageiros** | Cadastro único: nome, **ID** (`P-00012`) e **documento (CPF ou RG)** |
 | **Contatos** | Motoristas, empresas de fretamento, guias e fornecedores; podem ser ligados a cada van |
 
 ### Regras que o sistema aplica
 
+- **Van fechada não muda a lista.** Ninguém entra, sai, troca de assento ou é transferido de/para ela até reabrir. Pagamentos continuam. Quem está na lista de espera fica fora da lista de presença.
 - **Van lotada → lista de espera.** Quem entra com a van cheia vai para a fila, na ordem de chegada.
   Quando abre vaga, você confirma o primeiro da fila com um clique.
 - **Pagamento calculado.** Pendente, parcial ou pago vem da soma dos pagamentos. “Quitar” registra o que falta,
@@ -69,7 +71,7 @@ Abra `http://127.0.0.1:8000`. A documentação interativa da API fica em `/docs`
 Testes e qualidade de código:
 
 ```bash
-.venv/Scripts/python -m pytest        # 99 testes (a API do site é simulada nos testes)
+.venv/Scripts/python -m pytest        # 113 testes (a API do site é simulada nos testes)
 .venv/Scripts/python -m ruff check .  # lint
 ```
 
@@ -108,7 +110,7 @@ ERP_DATABASE_URL=postgresql://usuario:senha@host/banco?sslmode=require
 app/
   main.py           aplicação, cabeçalhos de segurança, painel servido por app.frontend()
   config.py db.py   configuração e banco (SQLite local, Postgres em produção)
-  models.py         tabelas erp_*
+  models.py         tabelas erp_* (inclui erp_fechamentos, erp_pontos e erp_presencas)
   schemas.py        contratos de entrada e saída
   security.py       login, sessão, CSRF, limitador
   api_publica.py    único ponto que conversa com a API do site (tratamento de queda e recusa)
@@ -117,7 +119,7 @@ app/
   routers/          rotas: auth, painel, eventos, linktree, veiculos, reservas, passageiros, contatos
   cli.py            criar-usuario, dados-demo
 frontend/           painel (HTML + CSS + JS, sem build), mesma identidade visual do site
-tests/              99 testes
+tests/              113 testes
 ```
 
 Seguimos a skill de FastAPI do projeto: `Annotated` nas dependências, dependências de login no `APIRouter`,

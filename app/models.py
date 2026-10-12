@@ -106,3 +106,41 @@ class Pagamento(SQLModel, table=True):
     observacao: str | None = Field(default=None, max_length=300)
     registrado_por: str = Field(max_length=120)
     criado_em: datetime = Field(default_factory=agora)
+
+
+class Fechamento(SQLModel, table=True):
+    """Van fechada: a lista de confirmados deixa de mudar e passa a servir de lista de presença.
+
+    É uma tabela à parte (em vez de uma coluna em erp_veiculos) para o banco que já existe receber
+    o recurso só com tabelas novas, sem alterar nenhuma tabela antiga.
+    """
+
+    __tablename__ = "erp_fechamentos"
+
+    veiculo_id: int = Field(foreign_key="erp_veiculos.id", primary_key=True)
+    fechada_em: datetime = Field(default_factory=agora)
+    fechada_por: str = Field(max_length=120)
+
+
+class Ponto(SQLModel, table=True):
+    """Um momento da viagem em que se confere quem está na van (entrada, paradas, volta)."""
+
+    __tablename__ = "erp_pontos"
+
+    id: int | None = Field(default=None, primary_key=True)
+    veiculo_id: int = Field(foreign_key="erp_veiculos.id", index=True)
+    nome: str = Field(max_length=60)
+    ordem: int = 0
+
+
+class Presenca(SQLModel, table=True):
+    """O passageiro estava na van neste ponto. Sem linha, não foi marcado."""
+
+    __tablename__ = "erp_presencas"
+    __table_args__ = (UniqueConstraint("ponto_id", "reserva_id", name="uq_presenca_ponto_reserva"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    ponto_id: int = Field(foreign_key="erp_pontos.id", index=True)
+    reserva_id: int = Field(foreign_key="erp_reservas.id", index=True)
+    marcado_em: datetime = Field(default_factory=agora)
+    marcado_por: str = Field(max_length=120)

@@ -54,6 +54,8 @@ def atualizar_veiculo(veiculo_id: int, dados: VeiculoAtualizacao, session: Sessi
     if "contato_id" in mudancas:
         _conferir_contato(session, mudancas["contato_id"])
     nova = mudancas.get("capacidade")
+    if nova is not None and nova != veiculo.capacidade:
+        regras.exigir_aberta(session, veiculo.id)
     if nova is not None and nova < veiculo.capacidade:
         ocupados = regras.assentos_ocupados(session, veiculo.id)
         if len(ocupados) > nova:

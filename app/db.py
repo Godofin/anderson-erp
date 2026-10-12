@@ -43,7 +43,16 @@ def criar_tabelas() -> None:
     SQLModel.metadata.create_all(engine)
 
 
+_tabelas_prontas = False
+
+
 def get_session() -> Iterator[Session]:
+    # Garante as tabelas na primeira requisição: na Vercel o evento de inicialização nem sempre roda,
+    # e recursos novos trazem tabelas novas
+    global _tabelas_prontas
+    if not _tabelas_prontas:
+        criar_tabelas()
+        _tabelas_prontas = True
     with Session(engine) as session:
         yield session
 

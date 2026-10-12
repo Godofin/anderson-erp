@@ -9,7 +9,7 @@ from datetime import date
 from fastapi import HTTPException, status
 from sqlmodel import Session, func, select
 
-from app.models import Pagamento, Passageiro, Reserva, Veiculo, agora
+from app.models import Fechamento, Pagamento, Passageiro, Reserva, Veiculo, agora
 from app.schemas import (
     PagamentoEntrada,
     QuitacaoEntrada,
@@ -58,6 +58,16 @@ def bloquear_veiculo(session: Session, veiculo_id: int) -> Veiculo:
     return veiculo
 
 
+def van_fechada(session: Session, veiculo_id: int) -> bool:
+    return session.get(Fechamento, veiculo_id) is not None
+
+
+def exigir_aberta(session: Session, veiculo_id: int) -> None:
+    """A lista de uma van fechada não muda. Para mexer, é preciso reabrir."""
+    if van_fechada(session, veiculo_id):
+        raise RegraDeNegocio("Esta van está fechada. Reabra a van para mudar a lista de passageiros.")
+
+
 def assentos_ocupados(session: Session, veiculo_id: int) -> dict[int, int]:
     linhas = session.exec(
         select(Reserva.assento, Reserva.id).where(
@@ -94,6 +104,7 @@ def _validar_assento(
 # ------------------------------------------------------------------ reservas
 def adicionar_reserva(session: Session, veiculo_id: int, dados: ReservaEntrada) -> Reserva:
     veiculo = bloquear_veiculo(session, veiculo_id)
+    exigir_aberta(session, veiculo.id)
 
     if dados.novo_passageiro is not None:
         passageiro = criar_passageiro(session, dados.novo_passageiro)
@@ -154,6 +165,7 @@ def atualizar_reserva(session: Session, reserva: Reserva, dados: ReservaAtualiza
         if reserva.situacao != "confirmado":
             raise RegraDeNegocio("Só quem está confirmado tem assento.")
         veiculo = bloquear_veiculo(session, reserva.veiculo_id)
+        exigir_aberta(session, veiculo.id)
         _validar_assento(
             veiculo, mudancas["assento"], assentos_ocupados(session, veiculo.id), ignorar=reserva.id
         )
@@ -173,6 +185,7 @@ def atualizar_reserva(session: Session, reserva: Reserva, dados: ReservaAtualiza
 def mover_para_espera(session: Session, reserva: Reserva) -> Reserva:
     if reserva.situacao != "confirmado":
         raise RegraDeNegocio("Só dá para mandar para a lista de espera quem está confirmado.")
+    exigir_aberta(session, reserva.veiculo_id)
     reserva.situacao = "espera"
     reserva.assento = None
     reserva.entrou_na_espera_em = agora()
@@ -186,6 +199,7 @@ def promover(session: Session, reserva: Reserva) -> Reserva:
     if reserva.situacao != "espera":
         raise RegraDeNegocio("Só quem está na lista de espera pode ser confirmado.")
     veiculo = bloquear_veiculo(session, reserva.veiculo_id)
+    exigir_aberta(session, veiculo.id)
     ocupados = assentos_ocupados(session, veiculo.id)
     assento = primeiro_assento_livre(veiculo.capacidade, ocupados)
     if assento is None:
@@ -202,6 +216,8 @@ def promover(session: Session, reserva: Reserva) -> Reserva:
 def cancelar(session: Session, reserva: Reserva) -> Reserva:
     if reserva.situacao == "cancelado":
         raise RegraDeNegocio("Esta reserva já está cancelada.")
+    if reserva.situacao == "confirmado":
+        exigir_aberta(session, reserva.veiculo_id)
     reserva.situacao = "cancelado"
     reserva.assento = None
     reserva.entrou_na_espera_em = None
@@ -225,6 +241,9 @@ def transferir(
     destino = session.get(Veiculo, destino_id)
     if destino.evento_id != reserva.evento_id:
         raise RegraDeNegocio("Só dá para transferir entre vans da mesma viagem.")
+    if reserva.situacao == "confirmado":
+        exigir_aberta(session, reserva.veiculo_id)
+    exigir_aberta(session, destino.id)
 
     if reserva.situacao == "confirmado":
         ocupados = assentos_ocupados(session, destino.id)
@@ -245,6 +264,8 @@ def transferir(
 
 
 def apagar_reserva(session: Session, reserva: Reserva) -> None:
+    if reserva.situacao == "confirmado":
+        exigir_aberta(session, reserva.veiculo_id)
     if total_pago(session, reserva.id) > 0:
         raise RegraDeNegocio(
             "Há pagamentos registrados nesta reserva. Cancele em vez de apagar, para manter o histórico."

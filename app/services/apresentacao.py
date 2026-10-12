@@ -5,7 +5,7 @@ from collections import defaultdict
 from sqlmodel import Session, col, func, select
 
 from app.eventos_publicos import EventoPublico
-from app.models import Contato, Pagamento, Passageiro, Reserva, Veiculo
+from app.models import Contato, Fechamento, Pagamento, Passageiro, Reserva, Veiculo
 from app.schemas import (
     ContatoMini,
     ContatoPublico,
@@ -129,6 +129,11 @@ def resumo_veiculos(session: Session, veiculos: list[Veiculo]) -> list[VeiculoRe
         ).all()
     }
 
+    fechamentos = {
+        f.veiculo_id: f
+        for f in session.exec(select(Fechamento).where(col(Fechamento.veiculo_id).in_(ids))).all()
+    }
+
     por_veiculo: dict[int, list[Reserva]] = defaultdict(list)
     for r in reservas:
         por_veiculo[r.veiculo_id].append(r)
@@ -153,6 +158,8 @@ def resumo_veiculos(session: Session, veiculos: list[Veiculo]) -> list[VeiculoRe
                 confirmados=len(confirmadas),
                 livres=max(v.capacidade - len(confirmadas), 0),
                 em_espera=sum(1 for r in suas if r.situacao == "espera"),
+                fechada=v.id in fechamentos,
+                fechada_em=fechamentos[v.id].fechada_em if v.id in fechamentos else None,
                 pago_centavos=recebido,
                 a_receber_centavos=a_receber,
                 contato=(

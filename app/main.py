@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from app.api_publica import ApiPublicaIndisponivel, ApiPublicaRecusou
 from app.config import get_settings
 from app.db import criar_tabelas
-from app.routers import auth, contatos, eventos, linktree, painel, passageiros, reservas, veiculos
+from app.routers import auth, contatos, eventos, linktree, painel, passageiros, reservas, veiculos, viagem
 
 PASTA_FRONTEND = Path(__file__).resolve().parent.parent / "frontend"
 
@@ -84,7 +84,7 @@ def saude() -> dict[str, str]:
     return {"status": "ok"}
 
 
-for rota in (auth, painel, eventos, linktree, veiculos, reservas, passageiros, contatos):
+for rota in (auth, painel, eventos, linktree, veiculos, viagem, reservas, passageiros, contatos):
     app.include_router(rota.router)
 
 # O painel (HTML, CSS e JS) é servido pela própria API. As rotas /api vêm primeiro.

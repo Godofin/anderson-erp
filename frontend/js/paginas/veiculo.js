@@ -5,6 +5,7 @@ import {
     plural, primeiroNome, reaisParaCampo, toast,
 } from '../ui.js';
 import { abrirDetalhe } from './passageiros.js';
+import { ligarFechada, renderizarFechada } from './veiculo_fechada.js';
 
 const documentoTexto = (p) => `${p.documento_tipo.toUpperCase()} ${p.documento_mascarado}`;
 
@@ -93,6 +94,7 @@ export async function renderizar(raiz, ctx) {
     const evento = await api.get(`/api/eventos/${v.evento_id}`);
     ctx.titulo(`${v.nome} (${evento.titulo})`);
     raiz._dados = { v, evento };
+    if (v.fechada) return renderizarFechada(raiz, ctx, v, evento);
 
     const todas = [...v.confirmadas, ...v.espera, ...v.canceladas];
     const temVaga = v.livres > 0;
@@ -117,6 +119,7 @@ export async function renderizar(raiz, ctx) {
             </div>
             <div class="acoes">
                 <button class="btn btn-primario" type="button" data-acao="adicionar"><i class="ph ph-user-plus" aria-hidden="true"></i>Adicionar passageiro</button>
+                ${v.confirmados ? html`<button class="btn btn-neutro" type="button" data-acao="fechar-van"><i class="ph ph-lock-simple" aria-hidden="true"></i>Fechar van</button>` : ''}
                 <button class="btn btn-neutro" type="button" data-acao="editar-van"><i class="ph ph-pencil-simple" aria-hidden="true"></i>Editar van</button>
                 <button class="btn btn-perigo btn-icone" type="button" data-acao="apagar-van" aria-label="Apagar van"><i class="ph ph-trash" aria-hidden="true"></i></button>
             </div>
@@ -167,6 +170,7 @@ export async function renderizar(raiz, ctx) {
 
 // ------------------------------------------------------------------ ações
 export function ligar(raiz, ctx) {
+    if (raiz._fechada) return ligarFechada(raiz, ctx, dialogPagamento);
     const { v, evento } = raiz._dados;
     const reserva = (el) => raiz._mapa.get(String(el.dataset.id));
     const depois = (mensagem) => { if (mensagem) toast(mensagem); ctx.recarregar(); };
@@ -227,6 +231,16 @@ export function ligar(raiz, ctx) {
                 case 'reativar': {
                     await api.post(`/api/veiculos/${v.id}/reservas`, { passageiro_id: Number(el.dataset.passageiro) });
                     return depois('Passageiro reativado');
+                }
+                case 'fechar-van': {
+                    const sim = await confirmar({
+                        titulo: `Fechar ${v.nome}?`,
+                        mensagem: `A lista dos ${plural(v.confirmados, 'passageiro confirmado', 'passageiros confirmados')} fica travada e vira lista de presença, com checks na entrada, nas paradas e na volta. Ninguém entra, sai ou troca de assento até você reabrir.${v.em_espera ? ` ${plural(v.em_espera, 'pessoa fica', 'pessoas ficam')} na lista de espera, fora da lista.` : ''} Pagamentos continuam podendo ser registrados.`,
+                        rotulo: 'Fechar van',
+                    });
+                    if (!sim) return;
+                    await api.post(`/api/veiculos/${v.id}/fechar`);
+                    return depois('Van fechada. Já dá para marcar a presença.');
                 }
                 case 'apagar-van': {
                     const sim = await confirmar({

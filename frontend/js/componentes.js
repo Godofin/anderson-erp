@@ -30,7 +30,8 @@ export function cartaoVan(v) {
     return html`<a class="van-cartao" href="#/veiculos/${v.id}">
         <div class="topo">
             <div><h3>${v.nome}</h3>
-                <span class="muted">${TIPOS_VEICULO[v.tipo]}${v.placa ? ` · ${v.placa}` : ''}</span></div>
+                <span class="muted">${TIPOS_VEICULO[v.tipo]}${v.placa ? ` · ${v.placa}` : ''}</span>
+                ${v.fechada ? html`<div><span class="etiqueta ok"><i class="ph-fill ph-lock-simple" aria-hidden="true"></i>Fechada</span></div>` : ''}</div>
             <i class="ph ${ICONE_VEICULO[v.tipo]}" aria-hidden="true"></i>
         </div>
         ${barraOcupacao(v.confirmados, v.capacidade)}
